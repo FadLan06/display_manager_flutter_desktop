@@ -1,3 +1,3 @@
-# display_rsud_zus
+# multi_display_rsud_zus
 
-A new Flutter project.
+Sebuah sistem aplikasi multi display yang mudah di operasikan

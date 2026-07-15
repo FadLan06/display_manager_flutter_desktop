@@ -14,7 +14,7 @@ void main() async {
   WindowOptions windowOptions = const WindowOptions(
     size: Size(600, 600),
     center: true,
-    title: 'Multiple Display Selector',
+    title: 'Pilih Display',
   );
 
   await windowManager.waitUntilReadyToShow(windowOptions, () async {
@@ -38,7 +38,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       debugShowCheckedModeBanner: false,
-      title: 'Multi Display',
+      title: 'Pilih Display',
       home: DisplayPage(),
     );
   }

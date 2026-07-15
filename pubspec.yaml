@@ -1,6 +1,6 @@
 name: display_rsud_zus
-description: "Project display."
-publish_to: 'none'
+description: "Sebuah sistem aplikasi multi display yang mudah di operasikan"
+publish_to: 'FadhlanZainuddin'
 version: 0.1.0+1
 
 environment:

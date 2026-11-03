@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
+
+import 'package:flutter/material.dart';
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:window_manager/window_manager.dart';
 import 'package:webview_windows/webview_windows.dart';
@@ -17,17 +20,22 @@ class DisplayPage extends StatefulWidget {
 class WebViewPage extends StatefulWidget {
   final double width;
   final double height;
+  final WebviewController controller;
+  final Future<void> Function() onAutoClick;
 
-  const WebViewPage({Key? key, required this.width, required this.height})
-    : super(key: key);
+  const WebViewPage({
+    super.key,
+    required this.width,
+    required this.height,
+    required this.controller,
+    required this.onAutoClick,
+  });
 
   @override
   State<WebViewPage> createState() => _WebViewPageState();
 }
 
 class _WebViewPageState extends State<WebViewPage> {
-  final _controller = WebviewController();
-
   @override
   void initState() {
     super.initState();
@@ -54,36 +62,40 @@ class _WebViewPageState extends State<WebViewPage> {
   }
 
   Future<void> initPlatformState() async {
-    await _controller.initialize();
+    await widget.controller.initialize();
     // await _controller.loadUrl(
-    //   'http://165.99.98.241/livebridging/queueing/displayreg?qlocation=01&qcounter=2',
+    //   'http://192.168.11.100/livebridging/queueing/displayreg?qlocation=01&qcounter=2',
     // ); // Loket Rajal
     // await _controller.loadUrl(
-    //   'http://165.99.98.241/live/module/kiosk/OTMonitoringDisplayV3.aspx',
+    //   'http://192.168.11.100/live/module/kiosk/OTMonitoringDisplayV3.aspx',
     // ); // RUANG OPERASI
-    await _controller.loadUrl(
-      'http://165.99.98.241/live/module/kiosk/BedMonitoringDisplayGeneral.aspx',
+    await widget.controller.loadUrl(
+      'http://rsudzus.simrsaviat.com:3030/queue/display?template=lab-rad',
     ); // bed monitoring
     // await _controller.loadUrl(
-    //   'http://165.99.98.241/live/module/kiosk/PrescQueueDisplay6Col.aspx?suid=D5.0.A07',
+    //   'http://192.168.11.100/live/module/kiosk/PrescQueueDisplay6Col.aspx?suid=D5.0.A07',
     // ); // resep apotek
     // await _controller.loadUrl(
-    //   'http://165.99.98.241/livebridging/queueing/displaypoli?qlocation=02&qcounter=1',
+    //   'http://192.168.11.100/livebridging/queueing/displaypoli?qlocation=02&qcounter=1',
     // ); // Antrian Dokter
     setState(() {});
+    widget.onAutoClick();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       // appBar: AppBar(title: const Text('Flutter Desktop WebView')),
-      body: Webview(_controller),
+      body: Webview(widget.controller),
     );
   }
 }
 
 class _DisplayPageState extends State<DisplayPage> {
   final displayService = DisplayService();
+  final _controller = WebviewController();
+  final TextEditingController _selectorCtrl = TextEditingController();
+  final TextEditingController _textCtrl = TextEditingController();
 
   List<Display> displays = [];
 
@@ -109,6 +121,51 @@ class _DisplayPageState extends State<DisplayPage> {
     setState(() {});
   }
 
+  Future<void> _runAutoClick() async {
+    final selector = jsonEncode(_selectorCtrl.text.trim());
+    final text = jsonEncode(_textCtrl.text.trim());
+
+    final script =
+        '''
+(function () {
+  const selector = $selector;
+  const text = $text.toLowerCase();
+  let tries = 0;
+
+  function find() {
+    let el = selector ? document.querySelector(selector) : null;
+    if (!el && text) {
+      const all = document.querySelectorAll(
+        'button, a, input[type=button], input[type=submit], [role=button]'
+      );
+      el = Array.from(all).find(function (e) {
+        const label = (e.innerText || e.value || '').trim().toLowerCase();
+        return label.includes(text);
+      });
+    }
+    return el;
+  }
+
+  const timer = setInterval(function () {
+    tries++;
+    const el = find();
+    if (el) {
+      clearInterval(timer);
+      el.scrollIntoView({ block: 'center' });
+      el.click();
+      window.chrome.webview.postMessage('Tombol berhasil diklik');
+    } else if (tries >= 60) {
+      clearInterval(timer);
+      window.chrome.webview.postMessage('Tombol tidak ditemukan');
+    }
+  }, 500);
+})();
+''';
+
+    if (!mounted) return;
+    await _controller.executeScript(script);
+  }
+
   Future<void> saveConfig() async {
     await DatabaseService.instance.saveConfig(selectedDisplay!, fullscreen);
 
@@ -128,6 +185,8 @@ class _DisplayPageState extends State<DisplayPage> {
           body: WebViewPage(
             width: display.size.width,
             height: display.size.height,
+            controller: _controller,
+            onAutoClick: _runAutoClick,
           ),
         ),
       ),
